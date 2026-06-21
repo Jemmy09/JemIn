@@ -223,7 +223,56 @@ class JemIn:
 
     def _handle_model_command(self, arg: str) -> None:
         if not arg:
-            ui.print_info(f"Current model: {self.config.model}")
+            from .config import Config
+            from .client import ClientFactory, ClientError
+            
+            ui.print_info("Fetching all available models...")
+            providers = ["ollama", "openai", "anthropic"]
+            all_models = []
+            
+            for p in providers:
+                temp_config = Config(
+                    model=self.config.model, host=self.config.host, provider=p,
+                    openai_api_key=self.config.openai_api_key, anthropic_api_key=self.config.anthropic_api_key,
+                )
+                temp_client = ClientFactory(temp_config)
+                try:
+                    models = temp_client.list_models()
+                    for m in models:
+                        all_models.append((p, m))
+                except ClientError:
+                    pass
+            
+            if not all_models:
+                ui.print_error("No models found across any provider.")
+                return
+                
+            ui.console.print("\n[bold cyan]Select a model to switch to:[/bold cyan]")
+            for i, (p, m) in enumerate(all_models, start=1):
+                is_active = (m == self.config.model and p == self.config.provider)
+                marker = " (active)" if is_active else ""
+                style = "bold green" if is_active else "default"
+                ui.console.print(f"  [[bold magenta]{i}[/bold magenta]]] [{style}]{m}[/{style}] [grey58]({p})[/grey58]{marker}")
+            
+            ui.console.print()
+            ui.console.print("[bold cyan]Enter a number (or press Enter to cancel):[/bold cyan]")
+            try:
+                choice = input().strip()
+                if not choice:
+                    ui.print_info("Cancelled.")
+                    return
+                idx = int(choice) - 1
+                if 0 <= idx < len(all_models):
+                    p, m = all_models[idx]
+                    self.config.provider = p
+                    self.config.model = m
+                    self.config.save()
+                    self.client = ClientFactory(self.config)
+                    ui.print_info(f"Switched provider to '{p}' and model to '{m}'.")
+                else:
+                    ui.print_error("Invalid selection.")
+            except (ValueError, EOFError, KeyboardInterrupt):
+                ui.print_info("Cancelled.")
             return
 
         try:
