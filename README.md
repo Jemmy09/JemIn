@@ -40,6 +40,23 @@ jemin
 
 On your first run, a setup wizard will guide you through connecting to Ollama, selecting a default model, and setting up an optional initial system prompt.
 
+## Uninstallation
+
+If you ever wish to completely remove JemIn and all its saved configuration and chat history, we have provided easy uninstallation scripts.
+
+### Windows
+Double-click `uninstall.bat` in the project folder, or run it from your terminal:
+```bash
+uninstall.bat
+```
+
+### Mac / Linux / Android
+Run the shell script:
+```bash
+chmod +x uninstall.sh
+./uninstall.sh
+```
+
 ## Usage
 
 See [HowToUse.md](HowToUse.md) for a detailed list of commands and usage instructions.
