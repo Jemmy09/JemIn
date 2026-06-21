@@ -25,8 +25,7 @@ JemIn uses slash (`/`) commands to manage the session, configuration, and conver
 *   `/provider [name]` - Switches your active AI provider (`ollama`, `openai`, `anthropic`).
 *   `/apikey [provider] [key]` - Sets the API key for a cloud provider. Keys are saved locally.
 *   `/models` - Lists all available models for your current active provider.
-*   `/model [name]` - Switches the active model to the specified `[name]`.
-    *   *Note: If you are using Ollama and switch to a model you haven't pulled yet, you will be told to run `ollama pull <model_name>` first.*
+*   `/model [name]` - Switches the active model. **Tip:** If you type `/model` without a name, an interactive numbered menu will appear, allowing you to easily pick any model and automatically switch providers!
 *   `/system [prompt]` - Updates the system prompt for the current session and saves it as your new default. If no prompt is provided, it prints the current system prompt.
 *   `/temperature [value]` - Sets the creativity level (between 0.0 and 2.0).
 *   `/context [limit]` - Sets the maximum token limit for the conversation memory.
