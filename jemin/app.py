@@ -142,6 +142,18 @@ class JemIn:
         elif cmd == "/apikey":
             self._handle_apikey_command(arg)
 
+        elif cmd == "/temperature":
+            self._handle_temperature_command(arg)
+
+        elif cmd == "/context":
+            self._handle_context_command(arg)
+
+        elif cmd == "/host":
+            self._handle_host_command(arg)
+
+        elif cmd == "/delete":
+            self._handle_delete_command(arg)
+
         elif cmd == "/system":
             self._handle_system_command(arg)
 
@@ -265,6 +277,72 @@ class JemIn:
         self.convo.system_prompt = arg
         self.config.save()
         ui.print_info("System prompt updated for this session and saved.")
+
+    def _handle_temperature_command(self, arg: str) -> None:
+        if not arg:
+            ui.print_info(f"Current temperature: {self.config.temperature}")
+            return
+        try:
+            val = float(arg)
+            if not 0.0 <= val <= 2.0:
+                ui.print_error("Temperature should be between 0.0 and 2.0")
+                return
+            self.config.temperature = val
+            self.client.temperature = val
+            self.config.save()
+            ui.print_info(f"Temperature set to {val}")
+        except ValueError:
+            ui.print_error("Invalid temperature value. Must be a number (e.g. 0.7)")
+
+    def _handle_context_command(self, arg: str) -> None:
+        if not arg:
+            ui.print_info(f"Current context limit: {self.config.context_limit} tokens")
+            return
+        try:
+            val = int(arg)
+            if val < 100:
+                ui.print_error("Context limit must be at least 100")
+                return
+            self.config.context_limit = val
+            self.convo.context_limit = val
+            self.config.save()
+            ui.print_info(f"Context limit set to {val} tokens")
+        except ValueError:
+            ui.print_error("Invalid context limit. Must be an integer (e.g. 8000)")
+
+    def _handle_host_command(self, arg: str) -> None:
+        if not arg:
+            ui.print_info(f"Current Ollama host: {self.config.host}")
+            return
+        self.config.host = arg
+        self.config.save()
+        if self.config.provider == "ollama":
+            self.client = ClientFactory(self.config)
+        ui.print_info(f"Ollama host set to {arg}")
+
+    def _handle_delete_command(self, arg: str) -> None:
+        saved = Conversation.list_saved()
+        if not saved:
+            ui.print_info("No saved conversations to delete.")
+            return
+        if not arg:
+            self._list_history()
+            ui.print_info("Usage: /delete <number>")
+            return
+        try:
+            idx = int(arg) - 1
+            path = saved[idx]
+            if idx < 0:
+                raise IndexError
+        except (ValueError, IndexError):
+            ui.print_error("Invalid selection. Use /history to see valid numbers.")
+            return
+            
+        try:
+            path.unlink()
+            ui.print_info(f"Deleted conversation '{path.stem}'.")
+        except OSError as exc:
+            ui.print_error(f"Failed to delete {path.stem}: {exc}")
 
 
 def main() -> None:

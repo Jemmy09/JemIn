@@ -19,6 +19,7 @@ JemIn uses slash (`/`) commands to manage the session, configuration, and conver
 *   `/save` - Saves the current conversation to a file for later retrieval.
 *   `/history` - Lists all your previously saved conversations (most recent first).
 *   `/load <number>` - Loads a specific saved conversation. Use `/history` to find the number.
+*   `/delete <number>` - Deletes a specific saved conversation from your history.
 
 ### Model, Configuration & Providers
 *   `/provider [name]` - Switches your active AI provider (`ollama`, `openai`, `anthropic`).
@@ -27,6 +28,9 @@ JemIn uses slash (`/`) commands to manage the session, configuration, and conver
 *   `/model [name]` - Switches the active model to the specified `[name]`.
     *   *Note: If you are using Ollama and switch to a model you haven't pulled yet, you will be told to run `ollama pull <model_name>` first.*
 *   `/system [prompt]` - Updates the system prompt for the current session and saves it as your new default. If no prompt is provided, it prints the current system prompt.
+*   `/temperature [value]` - Sets the creativity level (between 0.0 and 2.0).
+*   `/context [limit]` - Sets the maximum token limit for the conversation memory.
+*   `/host [url]` - Sets the Ollama host URL (e.g. `http://localhost:11434`).
 
 ## Examples
 
