@@ -190,18 +190,36 @@ class JemIn:
         ui.print_info(f"Loaded conversation '{path.stem}' ({len(self.convo.messages)} messages).")
 
     def _list_models(self) -> None:
-        try:
-            models = self.client.list_models()
-        except ClientError as exc:
-            ui.print_error(str(exc))
-            return
-        if not models:
-            ui.print_info("No models found.")
-            return
-        ui.print_info(f"Available models ({self.config.provider}):")
-        for m in models:
-            marker = " (active)" if m == self.config.model else ""
-            ui.console.print(f"  \u2022 {m}{marker}")
+        from .config import Config
+        from .client import ClientFactory, ClientError
+        
+        ui.print_info("Available models by provider:")
+        providers = ["ollama", "openai", "anthropic"]
+        
+        for p in providers:
+            ui.console.print(f"\n[bold]{p.upper()}[/bold]")
+            temp_config = Config(
+                model=self.config.model,
+                host=self.config.host,
+                provider=p,
+                openai_api_key=self.config.openai_api_key,
+                anthropic_api_key=self.config.anthropic_api_key,
+            )
+            temp_client = ClientFactory(temp_config)
+            
+            try:
+                models = temp_client.list_models()
+                if not models:
+                    ui.console.print("  [grey58]No models found.[/grey58]")
+                else:
+                    for m in models:
+                        is_active = (m == self.config.model and p == self.config.provider)
+                        marker = " (active)" if is_active else ""
+                        style = "bold green" if is_active else "default"
+                        ui.console.print(f"  \u2022 [{style}]{m}[/{style}]{marker}")
+            except ClientError as exc:
+                ui.console.print(f"  [grey58]{exc}[/grey58]")
+        ui.console.print()
 
     def _handle_model_command(self, arg: str) -> None:
         if not arg:
