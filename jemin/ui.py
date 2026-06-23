@@ -7,6 +7,10 @@ streaming render, status/error messages, and the slash-command help table.
 
 from __future__ import annotations
 
+import getpass
+from types import TracebackType
+from typing import Optional
+
 from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
@@ -21,6 +25,7 @@ USER_COLOR = "bright_cyan"
 ASSISTANT_COLOR = "bright_green"
 ACCENT_COLOR = "magenta"
 ERROR_COLOR = "bright_red"
+SUCCESS_COLOR = "bright_green"
 DIM = "grey58"
 
 BANNER = r"""
@@ -42,7 +47,11 @@ def print_banner(provider: str, model: str, host: str, online: bool) -> None:
         )
         tagline = "Local AI assistant \u00b7 100% offline \u00b7 runs on your machine"
     else:
-        status = "[bold green]\u25cf active[/bold green]" if online else "[bold red]\u25cf missing api key[/bold red]"
+        status = (
+            "[bold green]\u25cf active[/bold green]"
+            if online
+            else "[bold red]\u25cf missing api key[/bold red]"
+        )
         tagline = "Cloud AI assistant \u00b7 connected to internet"
 
     body = Text.from_markup(
@@ -56,19 +65,6 @@ def print_banner(provider: str, model: str, host: str, online: bool) -> None:
     console.print(Panel(body, border_style=ACCENT_COLOR, box=ROUNDED, padding=(1, 3)))
 
 
-def print_user_message(text: str) -> None:
-    console.print(
-        Panel(
-            Text(text),
-            title="[bold]You[/bold]",
-            title_align="left",
-            border_style=USER_COLOR,
-            box=ROUNDED,
-            padding=(0, 2),
-        )
-    )
-
-
 class StreamingAssistantPanel:
     """
     Renders the assistant's reply incrementally inside a live-updating
@@ -76,29 +72,41 @@ class StreamingAssistantPanel:
     waiting for the full response.
     """
 
-    def __init__(self, model_name: str):
+    def __init__(self, model_name: str) -> None:
         self.model_name = model_name
-        self._buffer = ""
-        self._live: Live | None = None
+        self._buffer: str = ""
+        self._live: Optional[Live] = None
 
     def __enter__(self) -> "StreamingAssistantPanel":
-        self._live = Live(self._render(), console=console, refresh_per_second=12)
-        self._live.__enter__()
+        self._live = Live(
+            self._render(),
+            console=console,
+            refresh_per_second=12,
+        )
+        self._live.start(refresh=True)
         return self
 
-    def __exit__(self, exc_type, exc, tb) -> None:
-        if self._live:
-            self._live.update(self._render(final=True))
-            self._live.__exit__(exc_type, exc, tb)
+    def __exit__(
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        if self._live is not None:
+            self._live.update(self._render())
+            self._live.stop()
+            self._live = None
 
     def update(self, chunk: str) -> None:
         self._buffer += chunk
-        if self._live:
+        if self._live is not None:
             self._live.update(self._render())
 
-    def _render(self, final: bool = False) -> Panel:
-        content = Markdown(self._buffer) if self._buffer.strip() else Text(
-            "thinking\u2026", style=DIM
+    def _render(self) -> Panel:
+        content = (
+            Markdown(self._buffer)
+            if self._buffer.strip()
+            else Text("thinking\u2026", style=DIM)
         )
         title = f"[bold]Jem In[/bold] [{DIM}]\u00b7 {self.model_name}[/{DIM}]"
         return Panel(
@@ -116,15 +124,87 @@ class StreamingAssistantPanel:
 
 
 def print_error(message: str) -> None:
-    console.print(Panel(Text(message), title="[bold]Error[/bold]", border_style=ERROR_COLOR, box=ROUNDED))
+    console.print(
+        Panel(
+            Text(message),
+            title="[bold]Error[/bold]",
+            border_style=ERROR_COLOR,
+            box=ROUNDED,
+        )
+    )
 
 
 def print_info(message: str) -> None:
     console.print(f"[{ACCENT_COLOR}]\u203a[/{ACCENT_COLOR}] {message}")
 
 
+def print_success(message: str) -> None:
+    console.print(f"[{SUCCESS_COLOR}]\u2714[/{SUCCESS_COLOR}] {message}")
+
+
+def prompt_api_key(provider: str) -> str:
+    """
+    Display an interactive sign-in panel prompting the user for a cloud
+    provider API key. Input is hidden (no echo) for security.
+
+    Returns the key entered, or an empty string if the user cancelled.
+    """
+    provider_info = {
+        "openai": {
+            "label": "ChatGPT / OpenAI",
+            "url": "https://platform.openai.com/api-keys",
+            "prefix": "sk-",
+            "color": "bright_green",
+        },
+        "anthropic": {
+            "label": "Claude / Anthropic",
+            "url": "https://console.anthropic.com/settings/keys",
+            "prefix": "sk-ant-",
+            "color": "bright_yellow",
+        },
+    }
+
+    info = provider_info.get(provider, {
+        "label": provider.capitalize(),
+        "url": "",
+        "prefix": "",
+        "color": ACCENT_COLOR,
+    })
+    color = info["color"]
+    label = info["label"]
+    url = info["url"]
+    prefix = info["prefix"]
+
+    body = Text.from_markup(
+        f"[bold {color}]\u26a0  Sign in to {label}[/bold {color}]\n\n"
+        f"An API key is required to use this provider.\n\n"
+        + (f"  Get your key at: [{DIM}]{url}[/{DIM}]\n\n" if url else "")
+        + (f"  Key format:  [{DIM}]{prefix}...[/{DIM}]\n\n" if prefix else "")
+        + f"[{DIM}]Your key is stored locally in ~/.jemin/config.json\n"
+        f"It is never sent anywhere except the provider's own API.[/{DIM}]"
+    )
+    console.print(
+        Panel(body, title="[bold]API Key Required[/bold]", border_style=color, box=ROUNDED, padding=(1, 3))
+    )
+
+    console.print(f"[bold {color}]Enter API key (hidden, press Enter to cancel):[/bold {color}] ", end="")
+    try:
+        key = getpass.getpass(prompt="").strip()
+    except (EOFError, KeyboardInterrupt):
+        key = ""
+
+    if not key:
+        print_info("Sign-in cancelled.")
+    return key
+
+
 def print_help() -> None:
-    table = Table(title="Jem In \u2014 Commands", box=ROUNDED, border_style=ACCENT_COLOR, show_lines=False)
+    table = Table(
+        title="Jem In \u2014 Commands",
+        box=ROUNDED,
+        border_style=ACCENT_COLOR,
+        show_lines=False,
+    )
     table.add_column("Command", style="bold cyan", no_wrap=True)
     table.add_column("Description")
     rows = [
@@ -136,8 +216,9 @@ def print_help() -> None:
         ("/delete [number]", "Delete a saved conversation"),
         ("/provider [name]", "Switch provider (ollama, openai, anthropic)"),
         ("/apikey [provider] [key]", "Set API key for a cloud provider"),
-        ("/model [name]", "Show current model, or switch to a different local model"),
-        ("/models", "List models available locally via Ollama"),
+        ("/signin, /login", "Sign in to ChatGPT / Claude accounts securely"),
+        ("/model [name]", "Show current model, or switch to a different model"),
+        ("/models", "List all models across all providers (available or not)"),
         ("/system [text]", "Show or change the system prompt for this session"),
         ("/temperature [value]", "Set the creativity level (0.0 to 2.0)"),
         ("/context [limit]", "Set the max context limit in tokens"),

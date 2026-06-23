@@ -32,7 +32,7 @@ class Message:
         return {"role": self.role, "content": self.content, "timestamp": self.timestamp}
 
     @classmethod
-    def from_dict(cls, d: dict) -> "Message":
+    def from_dict(cls, d: dict) -> Message:
         return cls(role=d["role"], content=d["content"], timestamp=d.get("timestamp", time.time()))
 
 
@@ -49,7 +49,12 @@ class Conversation:
 
     def to_api_messages(self) -> list[dict]:
         """Build the message list to send to the model, with system prompt + trimming."""
-        self._trim_if_needed()
+        trimmed = self._trim_if_needed()
+        if trimmed and not self._trimmed_notice_shown:
+            self._trimmed_notice_shown = True
+            # Import here to avoid circular import at module level
+            from . import ui
+            ui.print_info("[dim](Oldest messages trimmed to stay within context limit.)[/dim]")
         api_messages = [{"role": "system", "content": self.system_prompt}]
         api_messages += [{"role": m.role, "content": m.content} for m in self.messages]
         return api_messages
@@ -93,7 +98,13 @@ class Conversation:
             context_limit=context_limit,
             session_id=data.get("session_id", path.stem),
         )
-        convo.messages = [Message.from_dict(m) for m in data.get("messages", [])]
+        convo.messages = []
+        for raw_msg in data.get("messages", []):
+            try:
+                convo.messages.append(Message.from_dict(raw_msg))
+            except (KeyError, TypeError):
+                # Skip malformed entries rather than crashing the whole load
+                continue
         return convo
 
     @staticmethod

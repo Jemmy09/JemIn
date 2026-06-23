@@ -24,7 +24,8 @@ JemIn uses slash (`/`) commands to manage the session, configuration, and conver
 ### Model, Configuration & Providers
 *   `/provider [name]` - Switches your active AI provider (`ollama`, `openai`, `anthropic`).
 *   `/apikey [provider] [key]` - Sets the API key for a cloud provider. Keys are saved locally.
-*   `/models` - Lists all available models for your current active provider.
+*   `/signin` or `/login` - Securely sign in to your cloud AI provider. Prompts you interactively (masking the input) to prevent the API key from leaking in cleartext shell history. Supports `openai` / `chatgpt` and `anthropic` / `claude` aliases.
+*   `/models` - Lists all available models across all configured providers (Ollama, OpenAI, Anthropic).
 *   `/model [name]` - Switches the active model. **Tip:** If you type `/model` without a name, an interactive numbered menu will appear, allowing you to easily pick any model and automatically switch providers!
 *   `/system [prompt]` - Updates the system prompt for the current session and saves it as your new default. If no prompt is provided, it prints the current system prompt.
 *   `/temperature [value]` - Sets the creativity level (between 0.0 and 2.0).
@@ -33,14 +34,19 @@ JemIn uses slash (`/`) commands to manage the session, configuration, and conver
 
 ## Examples
 
-**Changing Providers and API Keys:**
+**Signing in securely to a Provider:**
 ```text
-> /provider openai
-Switched provider to 'openai'. Model set to 'gpt-4o'.
-Error: API key missing for openai. Set it with: /apikey openai <key>
+> /signin openai
 
-> /apikey openai sk-12345...
-Saved API key for openai.
+⚠️ Sign in to ChatGPT / OpenAI
+An API key is required to use this provider.
+  Get your key at: https://platform.openai.com/api-keys
+  Key format: sk-...
+Your key is stored locally in ~/.jemin/config.json
+It is never sent anywhere except the provider's own API.
+
+Enter API key (hidden, press Enter to cancel): ******
+✔ Signed in to openai. API key saved.
 ```
 
 **Changing the system prompt:**
@@ -52,11 +58,17 @@ System prompt updated for this session and saved.
 **Switching models:**
 ```text
 > /models
-Locally available models:
-  • llama3 (active)
+
+OLLAMA
+  • llama3.2:3b (active)
   • mistral
-  • codellama
-  
+
+OPENAI
+  No models found.
+
+ANTHROPIC
+  No models found.
+
 > /model mistral
 Switched model to 'mistral'.
 ```
