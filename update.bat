@@ -9,17 +9,19 @@ if "%message%"=="" (
     set message="chore: update files"
 )
 
+set GIT_PATH="C:\Program Files\Git\cmd\git.exe"
+
 echo.
 echo Staging all changes...
-git add .
+%GIT_PATH% add .
 
 echo.
 echo Committing changes...
-git commit -m "%message%"
+%GIT_PATH% commit -m "%message%"
 
 echo.
 echo Pushing to GitHub...
-git push origin master
+%GIT_PATH% push origin master
 
 echo.
 echo =========================================
